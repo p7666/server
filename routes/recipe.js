@@ -6,13 +6,14 @@ const authenticate = require("../middleware/authenticate.js");
 
 const router = express.Router();
 
-// Multer Configuration for Image Uploads
+// ✅ Multer Configuration for Image Uploads
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
 // ✅ Post a Recipe (Authentication Required)
 router.post("/", authenticate, upload.single("image"), async (req, res) => {
     try {
+        console.log("Received Recipe Data:", req.body);
         const { name, ingredients, instructions, cookingTime } = req.body;
         const userId = req.user.id;
 
@@ -30,9 +31,22 @@ router.post("/", authenticate, upload.single("image"), async (req, res) => {
         });
 
         await newRecipe.save();
+        console.log("Recipe Saved:", newRecipe);
         res.status(201).json({ message: "Recipe posted successfully!", recipe: newRecipe });
     } catch (error) {
+        console.error("Error in posting recipe:", error);
         res.status(500).json({ error: error.message });
+    }
+});
+
+// ✅ Fetch All Recipes
+router.get("/", async (req, res) => {
+    try {
+        const recipes = await Recipe.find();
+        res.json(recipes);
+    } catch (error) {
+        console.error("Error fetching recipes:", error);
+        res.status(500).json({ error: "Server error while fetching recipes." });
     }
 });
 
@@ -41,20 +55,23 @@ router.get("/:name", async (req, res) => {
     try {
         const recipe = await Recipe.findOne({ name: req.params.name });
         if (!recipe) {
-            return res.status(404).json({ message: "Sorry, this recipe does not exist." });
+            return res.status(404).json({ message: "Recipe not found." });
         }
         res.json(recipe);
     } catch (error) {
+        console.error("Error searching recipe:", error);
         res.status(500).json({ error: "Server error while searching for recipe." });
     }
 });
 
-// ✅ Like Recipe (Authentication Required)
+// ✅ Like a Recipe (Authentication Required)
 router.post("/like/:id", authenticate, async (req, res) => {
     try {
         const user = await User.findById(req.user.id);
-        if (!user) {
-            return res.status(404).json({ message: "User not found" });
+        const recipe = await Recipe.findById(req.params.id);
+
+        if (!user || !recipe) {
+            return res.status(404).json({ message: "User or Recipe not found" });
         }
 
         if (user.likedRecipes.includes(req.params.id)) {
@@ -63,6 +80,9 @@ router.post("/like/:id", authenticate, async (req, res) => {
 
         user.likedRecipes.push(req.params.id);
         await user.save();
+
+        recipe.likes += 1;
+        await recipe.save();
 
         res.status(200).json({ message: "Recipe liked successfully", likedRecipes: user.likedRecipes });
     } catch (error) {
@@ -74,12 +94,21 @@ router.post("/like/:id", authenticate, async (req, res) => {
 // ✅ Edit Recipe (Authentication Required)
 router.put("/:id", authenticate, async (req, res) => {
     try {
-        const updatedRecipe = await Recipe.findByIdAndUpdate(req.params.id, req.body, { new: true });
-        if (!updatedRecipe) {
+        const recipe = await Recipe.findById(req.params.id);
+        if (!recipe) {
             return res.status(404).json({ message: "Recipe not found" });
         }
-        res.json(updatedRecipe);
+
+        // Check if the user is the owner of the recipe
+        if (recipe.postedBy.toString() !== req.user.id) {
+            return res.status(403).json({ message: "Unauthorized to edit this recipe" });
+        }
+
+        const updatedRecipe = await Recipe.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        console.log("Recipe Updated:", updatedRecipe);
+        res.json({ message: "Recipe updated successfully!", recipe: updatedRecipe });
     } catch (error) {
+        console.error("Error updating recipe:", error);
         res.status(500).json({ error: "Error updating recipe." });
     }
 });
