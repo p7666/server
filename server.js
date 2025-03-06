@@ -15,8 +15,6 @@ app.use("/recipes", require("./routes/recipe"));
 app.use('/recipes', require('./routes/recipeRoutes'));
 app.use('/user', require('./routes/userRoutes'));
 
-const cors = require("cors");
-
 app.use(
   cors({
     origin: "https://mern-recipe-app-client.onrender.com", // Allow only frontend
