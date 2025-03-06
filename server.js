@@ -1,19 +1,13 @@
-require("dotenv").config(); // Ensure .env is loaded at the top
+require("dotenv").config(); // Load .env variables
 
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 
-
 const app = express();
 
-app.use(express.json());
-app.use(cors());
-app.use("/auth", require("./routes/auth"));
-app.use("/contact", require("./routes/contact"));
-app.use("/recipes", require("./routes/recipe"));
-app.use('/recipes', require('./routes/recipeRoutes'));
-app.use('/user', require('./routes/userRoutes'));
+// Middleware
+app.use(express.json()); 
 
 app.use(
   cors({
@@ -37,11 +31,20 @@ mongoose
     .then(() => console.log("✅ DB connected successfully.."))
     .catch((err) => console.error("❌ MongoDB connection error:", err));
 
+// API Routes (Fixing paths to match frontend)
+app.use("/api/auth", require("./routes/auth"));
+app.use("/api/contact", require("./routes/contact"));
+app.use("/api/recipes", require("./routes/recipeRoutes")); // Keeping only this
+
+app.use("/api/user", require("./routes/userRoutes")); 
+
+// Health Check Route
 app.get("/", (req, res) => {
     res.send("API is running...");
 });
 
-const PORT = 3000;
+// Start Server
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log("🚀 Server is running on port: " + PORT);
 });
