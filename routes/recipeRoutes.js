@@ -2,21 +2,21 @@ const express = require("express");
 const authMiddleware = require("../middleware/authMiddleware");
 const authenticate = require("../middleware/authenticate.js");
 const Recipe = require("../models/Recipe");
-const User = require("../models/User"); // Ensure User model is imported
+const User = require("../models/User");
 
 const router = express.Router();
 
-// ✅ Get all recipes
+// ✅ Get all recipes (Including Instructions for display)
 router.get("/", async (req, res) => {
   try {
-    const recipes = await Recipe.find();
+    const recipes = await Recipe.find({}, "name imageUrl ingredients instructions cookingTime");
     res.json(recipes);
   } catch (error) {
     res.status(500).json({ message: "Server Error" });
   }
 });
 
-// ✅ Get a single recipe by ID (Fix for "View" option)
+// ✅ Get a single recipe by ID (Ensure all details are sent)
 router.get("/:id", async (req, res) => {
   try {
     const recipe = await Recipe.findById(req.params.id);
@@ -45,7 +45,7 @@ router.get("/recipes/:name", async (req, res) => {
   }
 });
 
-// ✅ Post a new Recipe (Protected Route)
+// ✅ Post a new Recipe
 router.post("/", authMiddleware, async (req, res) => {
   const { name, imageUrl, ingredients, instructions, cookingTime } = req.body;
   const userId = req.user.id; // Extract user ID from token
@@ -67,7 +67,7 @@ router.post("/", authMiddleware, async (req, res) => {
   }
 });
 
-// ✅ Like a Recipe (Protected Route)
+// ✅ Like a Recipe
 router.post("/like/:id", authenticate, async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
@@ -90,7 +90,7 @@ router.post("/like/:id", authenticate, async (req, res) => {
   }
 });
 
-// ✅ Edit a Recipe (Protected Route)
+// ✅ Edit a Recipe
 router.put("/:id", authMiddleware, async (req, res) => {
   try {
     const recipe = await Recipe.findById(req.params.id);
@@ -98,12 +98,10 @@ router.put("/:id", authMiddleware, async (req, res) => {
       return res.status(404).json({ message: "Recipe not found" });
     }
 
-    // Ensure the logged-in user is the owner of the recipe
     if (recipe.userId.toString() !== req.user.id) {
       return res.status(403).json({ message: "Unauthorized to edit this recipe" });
     }
 
-    // Update recipe details
     recipe.name = req.body.name || recipe.name;
     recipe.imageUrl = req.body.imageUrl || recipe.imageUrl;
     recipe.ingredients = req.body.ingredients || recipe.ingredients;
